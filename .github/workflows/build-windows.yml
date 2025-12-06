@@ -28,8 +28,8 @@ jobs:
           pyinstaller --name magazyn --windowed --onefile main.py
 
       - name: Install Inno Setup
-        run: |
-          choco install innosetup --yes
+        shell: cmd
+        run: choco install innosetup --yes
 
       - name: Create installer script
         shell: cmd
@@ -44,8 +44,8 @@ jobs:
           echo Source: "dist\magazyn.exe"; DestDir: "{app}" >> installer.iss
 
       - name: Build installer with Inno Setup
-        run: |
-          "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
+        shell: cmd
+        run: '"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss'
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
