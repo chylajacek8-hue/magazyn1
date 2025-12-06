@@ -197,56 +197,118 @@ class Inventory:
             raise ValueError("Nie znaleziono sekcji Invoice-Lines w pliku XML")
         return count
 
-# --- CLI / GUI selection ---
+# --- GUI / CLI ---
+
+def run_tkinter(inv: Inventory):
+    root = tk.Tk()
+    root.title("Magazyn - import EAN z faktury")
+    root.geometry("900x520")
+
+    cols = ("Nazwa", "Kategoria", "Ilość", "Cena zakupu", "Cena sprzedaży", "EAN")
+    tree = ttk.Treeview(root, columns=cols, show='headings')
+    for c in cols:
+        tree.heading(c, text=c)
+        tree.column(c, width=140)
+    tree.pack(fill='both', expand=True, padx=5, pady=5)
+
+    def refresh():
+        for r in tree.get_children():
+            tree.delete(r)
+        for it in inv.items:
+            tree.insert('', 'end', values=(it.name, it.category, it.quantity, it.purchase_price, it.sale_price, it.barcode))
+
+    frame = tk.Frame(root)
+    frame.pack(fill='x', padx=5, pady=5)
+
+    def on_import():
+        path = filedialog.askopenfilename(title="Wybierz fakturę XML", filetypes=[("XML files","*.xml")])
+        if path:
+            try:
+                cnt = inv.import_invoice_xml(path)
+                messagebox.showinfo("Import", f"Zaimportowano {cnt} pozycji.")
+                refresh()
+            except Exception as e:
+                messagebox.showerror("Błąd importu", str(e))
+
+    tk.Button(frame, text="Import XML", command=on_import).pack(side='left', padx=5)
+    tk.Button(frame, text="Odśwież", command=refresh).pack(side='left', padx=5)
+    tk.Button(frame, text="Zamknij", command=root.destroy).pack(side='right', padx=5)
+
+    refresh()
+    root.mainloop()
+
+def run_pysimplegui(inv: Inventory):
+    try:
+        import PySimpleGUI as sg
+    except Exception:
+        print("PySimpleGUI nie jest zainstalowane.")
+        return
+    sg.set_options(auto_size_buttons=True)
+    headings = ['Nazwa','Kategoria','Ilość','Cena zakupu','Cena sprzedaży','EAN']
+    data = [[it.name, it.category, it.quantity, it.purchase_price, it.sale_price, it.barcode] for it in inv.items]
+    layout = [
+        [sg.Text("Magazyn - import EAN z faktury", font=("Any",14))],
+        [sg.Table(values=data, headings=headings, auto_size_columns=True, num_rows=20, key='-TABLE-')],
+        [sg.Button("Import XML"), sg.Button("Odśwież"), sg.Button("Zamknij")]
+    ]
+    win = sg.Window("Magazyn", layout, finalize=True)
+    while True:
+        event, values = win.read()
+        if event in (sg.WIN_CLOSED, 'Zamknij'):
+            break
+        elif event == 'Odśwież':
+            data = [[it.name, it.category, it.quantity, it.purchase_price, it.sale_price, it.barcode] for it in inv.items]
+            win['-TABLE-'].update(values=data)
+        elif event == 'Import XML':
+            path = sg.popup_get_file('Wybierz plik XML', file_types=(('XML Files','*.xml'),))
+            if path:
+                try:
+                    cnt = inv.import_invoice_xml(path)
+                    sg.popup('Import', f'Zaimportowano {cnt} pozycji.')
+                    data = [[it.name, it.category, it.quantity, it.purchase_price, it.sale_price, it.barcode] for it in inv.items]
+                    win['-TABLE-'].update(values=data)
+                except Exception as e:
+                    sg.popup_error('Błąd importu', str(e))
+    win.close()
+
+def run_cli(inv: Inventory):
+    print("Magazyn - tryb tekstowy")
+    print("Dostępne polecenia: list, import <plik>, add, reduce, edit, exit")
+    while True:
+        try:
+            cmd = input("> ").strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            break
+        if not cmd:
+            continue
+        if cmd == 'exit':
+            break
+        elif cmd == 'list':
+            for it in inv.items:
+                print(it)
+        elif cmd.startswith('import'):
+            parts = cmd.split(maxsplit=1)
+            if len(parts) != 2:
+                print("Użyj: import ścieżka_do_pliku.xml")
+                continue
+            try:
+                cnt = inv.import_invoice_xml(parts[1])
+                print(f"Zaimportowano {cnt} pozycji.")
+            except Exception as e:
+                print("Błąd importu:", e)
+        else:
+            print("Nieznane polecenie.")
+
+# --- Main ---
 def main():
     inv = Inventory()
     use_cli = '--cli' in sys.argv or GUI_LIBRARY is None
     if not use_cli and GUI_LIBRARY == 'tkinter':
-        from tkinter_main import run_tkinter  # możesz wyodrębnić GUI do osobnego pliku, opcjonalnie
         run_tkinter(inv)
     elif not use_cli and GUI_LIBRARY == 'pysimplegui':
-        from pysimplegui_main import run_pysimplegui
         run_pysimplegui(inv)
     else:
-        # Tryb CLI
-        print("Uruchomiono w trybie tekstowym (CLI)")
-        while True:
-            cmd = input("> ").strip().lower()
-            if cmd in ('exit','quit'):
-                break
-            elif cmd == 'list':
-                for it in inv.items:
-                    print(it)
-            elif cmd.startswith('import'):
-                parts = cmd.split(maxsplit=1)
-                if len(parts) != 2:
-                    print("Użyj: import ścieżka_do_pliku.xml")
-                    continue
-                try:
-                    cnt = inv.import_invoice_xml(parts[1])
-                    print(f"Zaimportowano {cnt} pozycji.")
-                except Exception as e:
-                    print("Błąd importu:", e)
-            elif cmd == 'add':
-                n = input("Nazwa: "); c = input("Kategoria: ") or 'akcesorium'
-                q = int(input("Ilość: ") or 0); p = float(input("Cena zakupu: ") or 0.0)
-                b = input("EAN: ") or None
-                inv.add_item(n,c,q,b,p)
-                print("Dodano.")
-            elif cmd == 'reduce':
-                b = input("EAN: "); q = int(input("Ile: ") or 1)
-                r = inv.reduce_stock_by_barcode(b,q)
-                if r: print("Zaktualizowano:", r)
-                else: print("Nie znaleziono EAN.")
-            elif cmd == 'edit':
-                b = input("EAN: "); p = float(input("Cena zakupu: ") or 0.0); m = float(input("Marża (np. 0.3): ") or 0.3)
-                r = inv.edit_prices(b,p,m)
-                if r: print("Zaktualizowano ceny:", r)
-                else: print("Nie znaleziono produktu.")
-            elif cmd == 'help':
-                print("Dostępne polecenia: list, import <plik>, add, reduce, edit, exit")
-            else:
-                print("Nieznane polecenie. Wpisz 'help'.")
+        run_cli(inv)
 
 if __name__ == '__main__':
     main()
