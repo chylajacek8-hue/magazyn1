@@ -31,7 +31,8 @@ jobs:
       run: |
         choco install innosetup --yes
 
-    - name: Create installer script
+       - name: Create installer script
+      shell: cmd
       run: |
         echo [Setup] > installer.iss
         echo AppName=MagazynTelefonow >> installer.iss
