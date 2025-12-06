@@ -10,45 +10,45 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    - name: Checkout repo
-      uses: actions/checkout@v4
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.10"
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
 
-    - name: Install dependencies
-      run: |
-        pip install -r requirements.txt
-        pip install pyinstaller
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pyinstaller
 
-    - name: Build EXE with PyInstaller
-      run: |
-        pyinstaller --name magazyn --windowed --onefile main.py
+      - name: Build EXE with PyInstaller
+        run: |
+          pyinstaller --name magazyn --windowed --onefile main.py
 
-    - name: Install Inno Setup
-      run: |
-        choco install innosetup --yes
+      - name: Install Inno Setup
+        run: |
+          choco install innosetup --yes
 
-       - name: Create installer script
-      shell: cmd
-      run: |
-        echo [Setup] > installer.iss
-        echo AppName=MagazynTelefonow >> installer.iss
-        echo AppVersion=1.0 >> installer.iss
-        echo DefaultDirName={pf}\MagazynTelefonow >> installer.iss
-        echo OutputDir=dist >> installer.iss
-        echo OutputBaseFilename=Magazyn_installer >> installer.iss
-        echo [Files] >> installer.iss
-        echo Source: "dist\magazyn.exe"; DestDir: "{app}" >> installer.iss
+      - name: Create installer script
+        shell: cmd
+        run: |
+          echo [Setup] > installer.iss
+          echo AppName=MagazynTelefonow >> installer.iss
+          echo AppVersion=1.0 >> installer.iss
+          echo DefaultDirName={pf}\MagazynTelefonow >> installer.iss
+          echo OutputDir=dist >> installer.iss
+          echo OutputBaseFilename=Magazyn_installer >> installer.iss
+          echo [Files] >> installer.iss
+          echo Source: "dist\magazyn.exe"; DestDir: "{app}" >> installer.iss
 
-    - name: Build installer with Inno Setup
-      run: |
-        "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
+      - name: Build installer with Inno Setup
+        run: |
+          "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
 
-    - name: Upload artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: Windows-build
-        path: dist/
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Windows-build
+          path: dist/
